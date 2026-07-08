@@ -22,8 +22,4 @@ terrain/*
 # ...but allow committing the norway_fjord.tif file
 !terrain/norway_fjord.tif
 
-# Outputs & Generated Files
-*.png
-*.jpg
-*.jpeg
-*.svg
+
