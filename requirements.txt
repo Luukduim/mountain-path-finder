@@ -5,3 +5,8 @@ rasterio
 networkit
 pyvista
 numba
+ipykernel
+jupyter
+rasterio
+pyvista
+networkit

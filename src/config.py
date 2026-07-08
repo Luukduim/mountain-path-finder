@@ -3,7 +3,7 @@ import numpy as np
 # =====================================================================
 # 1. Path & Dataset Config
 # =====================================================================
-DEFAULT_TERRAIN_PATH = "/home/luuk-duim/noorwegen_project/terrain/norway_fjord.tif"
+DEFAULT_TERRAIN_PATH = "terrain/norway_fjord.tif"
 DEFAULT_RASTER_BAND = 1
 
 # =====================================================================
