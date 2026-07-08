@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+*.ipynb
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE / System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Terrain Datasets
+# Ignore all datasets in the terrain folder...
+terrain/*
+# ...but allow committing the norway_fjord.tif file
+!terrain/norway_fjord.tif
+
+# Outputs & Generated Files
+*.png
+*.jpg
+*.jpeg
+*.svg
