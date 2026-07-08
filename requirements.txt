@@ -5,3 +5,7 @@ rasterio
 networkit
 pyvista
 numba
+jupyter
+trame
+trame-vtk
+trame-vuetify
