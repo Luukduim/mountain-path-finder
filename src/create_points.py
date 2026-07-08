@@ -306,7 +306,8 @@ def plot_3d_pointcloud_pyvista(height_points, path_3d=None, dx=1.0, dy=1.0):
     plotter = pv.Plotter()
     plotter.add_mesh(
         point_cloud, scalars="Elevation", cmap="terrain", point_size=PYVISTA_POINT_SIZE,
-        render_points_as_spheres=True, label="Sampled Points (3D)"
+        render_points_as_spheres=True, label="Sampled Points (3D)",
+        scalar_bar_args={"fmt": "%.0f", "title": "Elevation (m)"}
     )
 
     if path_3d is not None and len(path_3d) > 0:
@@ -346,7 +347,10 @@ def plot_terrain_surface_pyvista(terrain_matrix, dx=1.0, dy=1.0, path_3d=None):
     grid["Elevation"] = grid.points[:, 2]
 
     plotter = pv.Plotter()
-    plotter.add_mesh(grid, scalars="Elevation", cmap="terrain", show_edges=False, label="3D Terrain")
+    plotter.add_mesh(
+        grid, scalars="Elevation", cmap="terrain", show_edges=False, label="3D Terrain",
+        scalar_bar_args={"fmt": "%.0f", "title": "Elevation (m)"}
+    )
 
     if path_3d is not None and len(path_3d) > 0:
         scaled_path = path_3d.copy()
