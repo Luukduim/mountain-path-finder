@@ -106,26 +106,3 @@ def calculate_region_stats(matrix, regions):
         mean = float(np.mean(sub)) if sub.size > 0 else 0.0
         stats.append({'x': x, 'y': y, 'w': w, 'h': h, 'var': var, 'mean': mean})
     return stats
-
-if __name__ == "__main__":
-    from src.generate_terrain import generate_terrain
-    print("Testing build_quadtree standalone...")
-    
-    # Generate a procedural mock terrain
-    terrain = generate_terrain(size=PROC_TERRAIN_SIZE, num_hills=PROC_TERRAIN_NUM_HILLS, roughness=PROC_TERRAIN_ROUGHNESS, seed=PROC_TERRAIN_SEED)
-
-    # 1. Run an initial pass with min_variance=0 to get variances of all regions
-    initial_regions = quadtree_regions(terrain, max_depth=INITIAL_QUADTREE_MAX_DEPTH, min_variance=INITIAL_QUADTREE_MIN_VARIANCE)
-    stats = calculate_region_stats(terrain, initial_regions)
-    
-    # 2. Filter by the 95th percentile of variance to focus density in high-roughness areas
-    stats_variances = [s['var'] for s in stats]
-    min_variance = np.percentile(stats_variances, VARIANCE_PERCENTILE_THRESHOLD) if len(stats_variances) > 0 else 0
-    print(f"95th percentile variance threshold: {min_variance:.3f}")
-
-    # 3. Regenerate quadtree using the filtered variance threshold
-    regions = quadtree_regions(terrain, max_depth=INITIAL_QUADTREE_MAX_DEPTH, min_variance=min_variance)
-    print(f"Generated {len(regions)} regions.")
-
-    # Show the quadtree overlay plot
-    draw_quadtree(terrain, regions, max_depth=INITIAL_QUADTREE_MAX_DEPTH, show=True)

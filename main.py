@@ -1,7 +1,8 @@
+import os
 import sys
-from pathlib import Path
-# Add parent directory to path so that 'src' is importable
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# Ensure project root is in the system path for seamless relative imports
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import numpy as np
 import matplotlib.pyplot as plt

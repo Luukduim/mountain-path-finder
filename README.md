@@ -47,7 +47,7 @@ You will need Python 3.10 or newer.
 
 3. Install the required libraries:
    ```bash
-   pip install numpy scipy matplotlib rasterio pyvista numba networkit
+   pip install -r requirements.txt
    ```
 
 ---

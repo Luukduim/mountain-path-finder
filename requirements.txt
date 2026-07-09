@@ -9,4 +9,7 @@ ipykernel
 jupyter
 rasterio
 pyvista
-networkit
+networkitjupyter
+trame
+trame-vtk
+trame-vuetify

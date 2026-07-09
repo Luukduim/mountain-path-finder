@@ -1,9 +1,14 @@
+import os
 import numpy as np
 
 # =====================================================================
 # 1. Path & Dataset Config
 # =====================================================================
-DEFAULT_TERRAIN_PATH = "terrain/norway_fjord.tif"
+# Dynamically locate the project root directory
+_CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(_CONFIG_DIR)
+
+DEFAULT_TERRAIN_PATH = os.path.join(PROJECT_ROOT, "terrain", "norway_fjord.tif")
 DEFAULT_RASTER_BAND = 1
 
 # =====================================================================
