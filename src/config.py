@@ -19,6 +19,10 @@ GEOGRAPHIC_DEGREE_THRESHOLD = 0.1
 MAX_BBOX_AREA_KM2 = 5000.0  # Limit the size of STAC DEM query to 500 square kilometers
 DEFAULT_BBOX_CANVAS_SIZE = 1000
 
+# Water Body Mask Config
+APPLY_WATER_BODY_MASK = True
+WATER_BODY_ELEVATION = -100
+
 # =====================================================================
 # 3. Quadtree Decomposition Config
 # =====================================================================
@@ -61,6 +65,7 @@ DEFAULT_SLOPE_PENALTY_ALPHA = 50.0
 MAIN_SLOPE_PENALTY_ALPHA = 5000
 NETWORKIT_INFINITY_THRESHOLD = 1e300
 PENALTY_BASE_SCALE = 1.0
+WATER_CROSSING_PENALTY = 250.0
 
 # Path smoothing parameters
 SMOOTH_PATH = True

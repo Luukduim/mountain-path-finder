@@ -6,7 +6,8 @@ from src.config import (
     COLORBAR_SHRINK,
     MARKER_SIZE_SELECTION,
     INTERACTIVE_SELECTION_FALLBACK_START,
-    INTERACTIVE_SELECTION_FALLBACK_END
+    INTERACTIVE_SELECTION_FALLBACK_END,
+    WATER_BODY_ELEVATION
 )
 
 def select_points(terrain, dx=DEFAULT_METRIC_RESOLUTION, dy=DEFAULT_METRIC_RESOLUTION):
@@ -23,9 +24,17 @@ def select_points(terrain, dx=DEFAULT_METRIC_RESOLUTION, dy=DEFAULT_METRIC_RESOL
     """
     fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
     height, width = terrain.shape
+    print(f"Terrain shape: {terrain.shape}")
+    
+    # Create a display copy and mask water pixels (equal to WATER_BODY_ELEVATION) as NaN
+    plot_terrain = terrain.copy()
+    plot_terrain[plot_terrain == WATER_BODY_ELEVATION] = np.nan
 
-    # Plot the raw heightmap
-    im = ax.imshow(terrain, cmap='viridis', origin='lower', aspect='auto')
+    cmap = plt.cm.viridis.copy()
+    cmap.set_bad(color='blue')
+
+    # Plot the heightmap, flipped vertically so that North (row 0) is at the top
+    im = ax.imshow(np.flipud(plot_terrain), cmap=cmap, origin='lower', aspect='auto')
     fig.colorbar(im, ax=ax, label='Elevation (m)', shrink=COLORBAR_SHRINK)
     ax.set_box_aspect(1)
     ax.set_title('Interactive Selection: Click 1st: Start, 2nd: End')
@@ -35,11 +44,13 @@ def select_points(terrain, dx=DEFAULT_METRIC_RESOLUTION, dy=DEFAULT_METRIC_RESOL
     # Display coordinates (pixel, metric, elevation) dynamically on mouse hover
     def format_coord(x, y):
         col = int(x + 0.5)
-        row = int(y + 0.5)
+        row = height - 1 - int(y + 0.5)
         if 0 <= col < width and 0 <= row < height:
-            z = terrain[row, col]
+            z = plot_terrain[row, col]
             x_m = col * dx
-            y_m = row * dy
+            y_m = (height - 1 - row) * dy
+            if np.isnan(z):
+                return f'Pixel: ({col}, {row}) | Metric: ({x_m:.1f}m, {y_m:.1f}m) | Height: Water'
             return f'Pixel: ({col}, {row}) | Metric: ({x_m:.1f}m, {y_m:.1f}m) | Height: {z:.2f}m'
         return f'Pixel: ({col}, {row})'
 
@@ -53,7 +64,8 @@ def select_points(terrain, dx=DEFAULT_METRIC_RESOLUTION, dy=DEFAULT_METRIC_RESOL
             return
         
         x, y = event.xdata, event.ydata
-        col, row = int(x + 0.5), int(y + 0.5)
+        col = int(x + 0.5)
+        row = height - 1 - int(y + 0.5)
         
         # Keep selected coordinates within the terrain boundaries
         col = max(0, min(width - 1, col))
@@ -71,13 +83,13 @@ def select_points(terrain, dx=DEFAULT_METRIC_RESOLUTION, dy=DEFAULT_METRIC_RESOL
         
         if len(coords) == 1:
             # Place green start point marker
-            m = ax.plot(col, row, 'go', markersize=MARKER_SIZE_SELECTION, label='Start Point')[0]
+            m = ax.plot(col, height - 1 - row, 'go', markersize=MARKER_SIZE_SELECTION, label='Start Point')[0]
             markers.append(m)
             ax.set_title('Start Point Selected! Click for End Point.')
             
         elif len(coords) == 2:
             # Place red end point marker
-            m = ax.plot(col, row, 'ro', markersize=MARKER_SIZE_SELECTION, label='End Point')[0]
+            m = ax.plot(col, height - 1 - row, 'ro', markersize=MARKER_SIZE_SELECTION, label='End Point')[0]
             markers.append(m)
             ax.set_title('Start & End Selected! Close window to start pathfinding.')
             print(f"Selected Start coordinate: {coords[0]}")

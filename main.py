@@ -11,6 +11,7 @@ from scipy.spatial import Delaunay
 import rasterio
 from rasterio.windows import from_bounds
 from rasterio.merge import merge
+from rasterio.warp import reproject, Resampling
 from pystac_client import Client
 import planetary_computer
 
@@ -21,6 +22,7 @@ from src.build_quadtree import quadtree_regions, calculate_region_stats, draw_qu
 from src.create_points import (
     sample_poisson_disk_points_numba,
     round_and_clamp_points,
+    filter_water_points,
     build_height_point_cloud,
     get_edges,
     plot_2d_delaunay,
@@ -44,7 +46,9 @@ from src.config import (
     MAIN_MIN_RADIUS,
     MAIN_SLOPE_PENALTY_ALPHA,
     SMOOTH_PATH,
-    SMOOTH_PATH_LAMBDA
+    SMOOTH_PATH_LAMBDA,
+    APPLY_WATER_BODY_MASK,
+    WATER_BODY_ELEVATION
 )
 
 def main():
@@ -57,10 +61,10 @@ def main():
 
     # Let user select bbox interactively
     print("Opening map for bounding box selection...")
-    bbox = select_bbox_interactively(start_lat=27.9878, start_lon=86.9250, zoom=11)
+    bbox = select_bbox_interactively(start_lat=0.0, start_lon=0.0, zoom=1)
     if bbox is None:
-        print("No bounding box selected. Using default (Mount Everest region).")
-        bbox = [86.85, 27.92, 87.05, 28.05]
+        print("No bounding box selected. Using default (Norway region).")
+        bbox = [5.433225, 60.405077, 5.599050, 60.486869]
 
     search = catalog.search(collections=["cop-dem-glo-30"], bbox=bbox)
 
@@ -70,6 +74,7 @@ def main():
     terrain = None
     res_x, res_y = None, None
     bounds = None
+    wbm_aligned = None
 
     if items:
         env_options = {
@@ -97,6 +102,47 @@ def main():
                     res_x, res_y = src_files[0].res
                     bounds = src_files[0].bounds
                     print(f"Successfully loaded and merged {len(src_files)} tiles covering the selected bounding box.")
+
+                    # Apply Water Body Mask if enabled
+                    if APPLY_WATER_BODY_MASK:
+                        print("\nQuerying Water Body Mask (JRC GSW)...")
+                        try:
+                            search_gsw = catalog.search(collections=["jrc-gsw"], bbox=bbox)
+                            items_gsw = list(search_gsw.items())
+                            if items_gsw:
+                                print(f"Found {len(items_gsw)} GSW tiles. Loading and aligning...")
+                                src_files_gsw = []
+                                try:
+                                    for item_gsw in items_gsw:
+                                        gsw_url = item_gsw.assets["extent"].href
+                                        src_files_gsw.append(rasterio.open(gsw_url))
+                                    
+                                    gsw_mosaic, gsw_trans = merge(src_files_gsw, bounds=bbox)
+                                    gsw_raw = gsw_mosaic[0]
+                                    gsw_crs = src_files_gsw[0].crs
+                                    dem_crs = src_files[0].crs
+                                    
+                                    wbm_aligned = np.zeros_like(terrain, dtype=np.uint8)
+                                    reproject(
+                                        source=gsw_raw,
+                                        destination=wbm_aligned,
+                                        src_transform=gsw_trans,
+                                        src_crs=gsw_crs,
+                                        dst_transform=out_trans,
+                                        dst_crs=dem_crs,
+                                        resampling=Resampling.nearest
+                                    )
+                                    
+                                    num_water_pixels = np.sum(wbm_aligned == 1)
+                                    terrain[wbm_aligned == 1] = WATER_BODY_ELEVATION
+                                    print(f"Successfully applied water body mask. Found {num_water_pixels} water pixels.")
+                                finally:
+                                    for s in src_files_gsw:
+                                        s.close()
+                            else:
+                                print("No Water Body Mask tiles found for this area. Skipping.")
+                        except Exception as e:
+                            print(f"Warning: Failed to load or apply Water Body Mask: {e}")
             finally:
                 for src in src_files:
                     src.close()
@@ -104,8 +150,12 @@ def main():
     if terrain is None:
         raise ValueError("Failed to load terrain. No STAC items found or loading failed.")
 
+    # Mask ocean/sea-level pixels (elevation <= 0) as water
+    terrain[terrain <= 0.0] = WATER_BODY_ELEVATION
+
     height, width = terrain.shape
     print(f"Loaded terrain matrix of size: {width}x{height} (width x height)")
+
 
     # Load spatial resolution
     dx, dy = DEFAULT_METRIC_RESOLUTION, DEFAULT_METRIC_RESOLUTION
@@ -159,6 +209,8 @@ def main():
     )
     print("Points generated succesfully.")
     points = round_and_clamp_points(raw_points, width, height)
+    if APPLY_WATER_BODY_MASK:
+        points = filter_water_points(points, terrain, wbm_mask=wbm_aligned, water_elevation=WATER_BODY_ELEVATION)
     height_points = build_height_point_cloud(points, terrain)
     print(f"Sampled {len(height_points)} 3D points.")
 
@@ -172,7 +224,12 @@ def main():
     # 5. Build Graph
     slope_penalty_alpha = MAIN_SLOPE_PENALTY_ALPHA
     print(f"Building NetworKit Graph (slope penalty alpha = {slope_penalty_alpha})...")
-    graph = make_graph(edges, height_points, dx=dx, dy=dy, alpha=slope_penalty_alpha)
+    graph = make_graph(
+        edges, height_points, dx=dx, dy=dy, alpha=slope_penalty_alpha,
+        wbm_mask=wbm_aligned if APPLY_WATER_BODY_MASK else None,
+        terrain=terrain,
+        water_elevation=WATER_BODY_ELEVATION if APPLY_WATER_BODY_MASK else None
+    )
 
     # 6. Run Pathfinding (A*)
     # Specify coordinates as (x, y) to find nearest points. If None, defaults to first/last node.

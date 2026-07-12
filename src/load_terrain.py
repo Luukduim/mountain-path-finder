@@ -86,7 +86,7 @@ def select_bounding_box(map_widget, root, max_area_km2=MAX_BBOX_AREA_KM2):
     root.destroy()
     return bbox
 
-def select_bbox_interactively(start_lat=27.9878, start_lon=86.9250, zoom=10, max_area_km2=MAX_BBOX_AREA_KM2, canvas_size=DEFAULT_BBOX_CANVAS_SIZE):
+def select_bbox_interactively(start_lat=0.0, start_lon=0.0, zoom=1, max_area_km2=MAX_BBOX_AREA_KM2, canvas_size=DEFAULT_BBOX_CANVAS_SIZE):
     """
     Spawns an interactive Tkinter window with a square (N x N) map canvas. 
     The user can pan/zoom to their area of interest.

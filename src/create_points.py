@@ -226,6 +226,22 @@ def round_and_clamp_points(points, width, height=None):
     return np.unique(points, axis=0)
 
 
+def filter_water_points(points, matrix, wbm_mask=None, water_elevation=None):
+    """Filter out points representing water using the mask or elevation value."""
+    if points.size == 0:
+        return points
+    
+    if wbm_mask is not None:
+        is_water = wbm_mask[points[:, 1], points[:, 0]]
+        points = points[is_water != 1]
+        
+    if water_elevation is not None:
+        z = matrix[points[:, 1], points[:, 0]]
+        points = points[z != water_elevation]
+        
+    return points
+
+
 def build_height_point_cloud(points, matrix):
     """Vectorized: Convert 2D coordinates [x, y] to 3D point cloud [x, y, z] using height values."""
     if points.size == 0:
@@ -288,7 +304,7 @@ def plot_2d_delaunay(points, path_3d=None):
     plt.title('2D Delaunay Triangulation')
 
 
-def plot_3d_pointcloud_pyvista(height_points, path_3d=None, dx=1.0, dy=1.0):
+def plot_3d_pointcloud_pyvista(height_points, path_3d=None, dx=1.0, dy=1.0, height=None):
     """3D point cloud interactive plot using PyVista (GPU-accelerated)."""
     try:
         import pyvista as pv
@@ -296,9 +312,15 @@ def plot_3d_pointcloud_pyvista(height_points, path_3d=None, dx=1.0, dy=1.0):
         print("Error: PyVista is not installed.")
         return
 
+    if height is None and len(height_points) > 0:
+        height = int(np.round(height_points[:, 1].max())) + 1
+
     scaled_points = height_points.copy()
     scaled_points[:, 0] *= dx
-    scaled_points[:, 1] *= dy
+    if height is not None:
+        scaled_points[:, 1] = (height - 1 - scaled_points[:, 1]) * dy
+    else:
+        scaled_points[:, 1] *= dy
 
     point_cloud = pv.PolyData(scaled_points)
     point_cloud["Elevation"] = scaled_points[:, 2]
@@ -313,7 +335,10 @@ def plot_3d_pointcloud_pyvista(height_points, path_3d=None, dx=1.0, dy=1.0):
     if path_3d is not None and len(path_3d) > 0:
         scaled_path = path_3d.copy()
         scaled_path[:, 0] *= dx
-        scaled_path[:, 1] *= dy
+        if height is not None:
+            scaled_path[:, 1] = (height - 1 - scaled_path[:, 1]) * dy
+        else:
+            scaled_path[:, 1] *= dy
         scaled_path[:, 2] += PYVISTA_Z_FIGHTING_OFFSET  # Floating offset to avoid overlay z-fighting
 
         num_points = len(scaled_path)
@@ -343,7 +368,8 @@ def plot_terrain_surface_pyvista(terrain_matrix, dx=1.0, dy=1.0, path_3d=None):
     y = np.arange(height) * dy
     x_grid, y_grid = np.meshgrid(x, y)
 
-    grid = pv.StructuredGrid(x_grid, y_grid, terrain_matrix)
+    # Flip the terrain vertically so that row 0 (North) is at the top of the Y axis
+    grid = pv.StructuredGrid(x_grid, y_grid, np.flipud(terrain_matrix))
     grid["Elevation"] = grid.points[:, 2]
 
     plotter = pv.Plotter()
@@ -355,7 +381,7 @@ def plot_terrain_surface_pyvista(terrain_matrix, dx=1.0, dy=1.0, path_3d=None):
     if path_3d is not None and len(path_3d) > 0:
         scaled_path = path_3d.copy()
         scaled_path[:, 0] *= dx
-        scaled_path[:, 1] *= dy
+        scaled_path[:, 1] = (height - 1 - scaled_path[:, 1]) * dy
         scaled_path[:, 2] += PYVISTA_Z_FIGHTING_OFFSET  # Floating offset to avoid z-fighting
 
         num_points = len(scaled_path)
