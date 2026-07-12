@@ -20,6 +20,6 @@ Thumbs.db
 # Ignore all datasets in the terrain folder...
 terrain/*
 # ...but allow committing the norway_fjord.tif file
-!terrain/norway_fjord.tif
+!terrain/default_norway.tif
 
 
