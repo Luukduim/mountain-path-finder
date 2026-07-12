@@ -4,7 +4,7 @@ import numpy as np
 # =====================================================================
 # 1. Path & Dataset Config
 # =====================================================================
-# Dynamically locate the project root directory
+# Dynamically locate the project root director
 _CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(_CONFIG_DIR)
 
@@ -16,6 +16,8 @@ DEFAULT_RASTER_BAND = 1
 # =====================================================================
 DEFAULT_METRIC_RESOLUTION = 1.0
 GEOGRAPHIC_DEGREE_THRESHOLD = 0.1
+MAX_BBOX_AREA_KM2 = 5000.0  # Limit the size of STAC DEM query to 500 square kilometers
+DEFAULT_BBOX_CANVAS_SIZE = 1000
 
 # =====================================================================
 # 3. Quadtree Decomposition Config

@@ -7,9 +7,9 @@ pyvista
 numba
 ipykernel
 jupyter
-rasterio
-pyvista
-networkitjupyter
 trame
 trame-vtk
 trame-vuetify
+tkintermapview
+pystac-client
+planetary-computer

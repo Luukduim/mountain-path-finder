@@ -22,8 +22,8 @@ The code runs a pipeline to turn a raw elevation grid into a 3D path:
 
 ## Project Structure
 
-* **`mountain-path-finder/main.py`**: The main script that runs the entire pipeline from loading the data to calculating the path and showing the 3D plot.
-* **`mountain-path-finder/optimal_mountain_path.ipynb`**: A notebook explaining the process, the math, and the logic behind the steps.
+* **`main.py`**: The main script that runs the entire pipeline from loading the data to calculating the path and showing the 3D plot.
+* **`Notebook/optimal_mountain_path.ipynb`**: A notebook explaining the process, the math, and the logic behind the steps.
 * **`src/config.py`**: Holds all the variables and parameters (like max quadtree depth, slope penalty alpha, and sampling radius).
 * **`src/`**: Modular python files containing the code for loading, quadtree creation, sampling, graph creation, and point selection.
 
@@ -54,10 +54,13 @@ You will need Python 3.10 or newer.
 
 ## How to Run
 
-To run the pipeline on the default terrain (Mount Everest dataset):
+To run the pipeline:
 
 ```bash
-python mountain-path-finder/main.py
+python main.py
 ```
 
-You will see a 2D plot of the terrain where you can click to choose a start point and end point. Once selected, the script will calculate the path and open the interactive 3D visualizations.
+When you run `main.py`:
+1. An interactive Tkinter map window will open. You can pan/zoom to find your area of interest.
+2. Click the **Confirm & Export Bounding Box** button at the bottom of the map.
+3. The script will automatically query the STAC API, download and merge all intersecting Copernicus DEM tiles covering your bounding box, and prompt you to click a start and end point in the 2D window to compute the optimal 3D path.

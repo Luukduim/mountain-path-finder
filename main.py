@@ -8,8 +8,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 
+import rasterio
+from rasterio.windows import from_bounds
+from rasterio.merge import merge
+from pystac_client import Client
+import planetary_computer
+
 # Import pipeline steps from modularized files
-from src.load_terrain import load_terrain
+from src.load_terrain import load_terrain, select_bbox_interactively
 from src.generate_terrain import generate_terrain
 from src.build_quadtree import quadtree_regions, calculate_region_stats, draw_quadtree
 from src.create_points import (
@@ -44,39 +50,88 @@ from src.config import (
 def main():
     
     # 1. Generate/Load Terrain
-    file_path = DEFAULT_TERRAIN_PATH
-    terrain = load_terrain(file_path=file_path)
+    #file_path = DEFAULT_TERRAIN_PATH
+    #terrain = load_terrain(file_path=file_path)
+
+    catalog = Client.open("https://planetarycomputer.microsoft.com/api/stac/v1", modifier=planetary_computer.sign_inplace)
+
+    # Let user select bbox interactively
+    print("Opening map for bounding box selection...")
+    bbox = select_bbox_interactively(start_lat=27.9878, start_lon=86.9250, zoom=11)
+    if bbox is None:
+        print("No bounding box selected. Using default (Mount Everest region).")
+        bbox = [86.85, 27.92, 87.05, 28.05]
+
+    search = catalog.search(collections=["cop-dem-glo-30"], bbox=bbox)
+
+    items = list(search.items())
+    print(f"Found {len(items)} DEM tiles covering this area.\n")
+    
+    terrain = None
+    res_x, res_y = None, None
+    bounds = None
+
+    if items:
+        env_options = {
+            'GDAL_DISABLE_READDIR_ON_OPEN': 'EMPTY_DIR',
+            'CPL_VSIL_CURL_ALLOWED_EXTENSIONS': 'tif',
+            'VSI_CACHE': True
+        }
+        
+        with rasterio.Env(**env_options):
+            src_files = []
+            try:
+                for item in items:
+                    cog_url = item.assets["data"].href
+                    print(f"Opening DEM tile: {item.id}")
+                    src = rasterio.open(cog_url)
+                    src_files.append(src)
+                
+                if src_files:
+                    # Merge all tiles and clip/crop directly to our bbox
+                    mosaic, out_trans = merge(src_files, bounds=bbox)
+                    # Extract the first band and cast to float32
+                    terrain = mosaic[0].astype(np.float32)
+                    
+                    # Store resolution and bounds from the first source tile
+                    res_x, res_y = src_files[0].res
+                    bounds = src_files[0].bounds
+                    print(f"Successfully loaded and merged {len(src_files)} tiles covering the selected bounding box.")
+            finally:
+                for src in src_files:
+                    src.close()
+    
+    if terrain is None:
+        raise ValueError("Failed to load terrain. No STAC items found or loading failed.")
+
     height, width = terrain.shape
     print(f"Loaded terrain matrix of size: {width}x{height} (width x height)")
 
     # Load spatial resolution
     dx, dy = DEFAULT_METRIC_RESOLUTION, DEFAULT_METRIC_RESOLUTION
-    try:
-        import rasterio
-        with rasterio.open(file_path) as src:
-            res_x, res_y = src.res
-            # If the resolution is extremely small (< 0.1), the coordinates are in degrees rather than meters
-            R = 6371000
-            if res_x < GEOGRAPHIC_DEGREE_THRESHOLD:
-                # Find the borders of the tif file (left/right are in longitude, bottom/top are in latitude)
-                left, bottom, right, top = src.bounds
-                # Use the center latitude for a more accurate conversion from degrees to meters
-                center_lat = (bottom + top) / 2.0
-                center_lat_rad = np.radians(center_lat)
+    if res_x is not None and res_y is not None and bounds is not None:
+        # If the resolution is extremely small (< 0.1), the coordinates are in degrees rather than meters
+        R = 6371000
+        if res_x < GEOGRAPHIC_DEGREE_THRESHOLD:
+            # Find the borders of the tif file (left/right are in longitude, bottom/top are in latitude)
+            left, bottom, right, top = bounds
+            # Use the center latitude for a more accurate conversion from degrees to meters
+            center_lat = (bottom + top) / 2.0
+            center_lat_rad = np.radians(center_lat)
 
-                # Use formula for converting degrees to meters at a given latitude
-                dx = res_x * (np.cos(center_lat_rad) * np.pi * R) / 180
-                dy = res_y *(np.pi * R) / 180
-                print("\n" + "="*80)
-                print("The loaded GeoTIFF uses geographic degrees (e.g. EPSG:4326) instead of meters.")
-                print(f"The code will estimate the metric pixel size at this latitude as:")
-                print(f"          dx = {dx:.2f}m, dy = {dy:.2f}m per pixel.")
-                print("="*80 + "\n")
-            else:
-                dx, dy = res_x, res_y
-                print(f"Loaded spatial resolution from TIFF: dx={dx:.3f}m, dy={dy:.3f}m per pixel")
-    except Exception as e:
-        print(f"Using default spatial resolution: dx=1.0, dy=1.0 (No TIFF resolution found: {e})")
+            # Use formula for converting degrees to meters at a given latitude
+            dx = res_x * (np.cos(center_lat_rad) * np.pi * R) / 180
+            dy = res_y *(np.pi * R) / 180
+            print("\n" + "="*80)
+            print("The loaded GeoTIFF uses geographic degrees (e.g. EPSG:4326) instead of meters.")
+            print(f"The code will estimate the metric pixel size at this latitude as:")
+            print(f"          dx = {dx:.2f}m, dy = {dy:.2f}m per pixel.")
+            print("="*80 + "\n")
+        else:
+            dx, dy = res_x, res_y
+            print(f"Loaded spatial resolution from TIFF: dx={dx:.3f}m, dy={dy:.3f}m per pixel")
+    else:
+        print("Using default spatial resolution: dx=1.0, dy=1.0 (No TIFF resolution found)")
 
     # 2. Build Quadtree
     print("Decomposing terrain using Quadtree...")
