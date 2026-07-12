@@ -15,7 +15,7 @@ The code runs a pipeline to turn raw geographic data into a 3D path:
 3. **Quadtree Decomposition**: To avoid running pathfinding on millions of pixels, the terrain is split recursively into regions. Regions with high elevation variance are split into smaller quadrants, while flat areas are left as larger squares. This places more nodes in complex terrain and fewer in flat areas.
 4. **Poisson Disk Sampling & Water Filtering**: Points are sampled inside each quadtree region. The radius is smaller in deep quadtree levels (rough terrain) and larger in shallow levels. Any sample points falling on water are discarded so that graph nodes are only created on land.
 5. **Delaunay Triangulation**: The sampled points are connected to their nearest neighbors using Delaunay triangulation to form a clean network of edges.
-6. **Graph and A* Search**: A graph is built using NetworKit. Edge weights are calculated based on 3D distance and slope (steep slopes are penalized quadratically). If an edge crosses a water body, a quadratic water crossing penalty proportional to the crossing distance ($\text{water\_penalty} \times \text{dist\_3d}^2$) is added to discourage swimming and encourage narrow stream crossings.
+6. **Graph and A* Search**: A graph is built using NetworKit. Edge weights are calculated based on 3D distance and slope (steep slopes are penalized quadratically). If an edge crosses a water body, a quadratic water crossing penalty proportional to the crossing distance is added to discourage swimming and encourage narrow stream crossings.
 7. **Path Smoothing**: Raw paths on a node network tend to have jagged corners. The code uses a parametric cubic spline to smooth out these sharp turns.
 
 ---
