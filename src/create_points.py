@@ -27,7 +27,8 @@ from src.config import (
     PYVISTA_POINT_SIZE,
     PYVISTA_PATH_LINE_WIDTH_CLOUD,
     PYVISTA_PATH_LINE_WIDTH_SURFACE,
-    WATER_BODY_ELEVATION
+    WATER_BODY_ELEVATION,
+    PYVISTA_BACKGROUND_COLOR
 )
 
 # =====================================================================
@@ -327,6 +328,7 @@ def plot_3d_pointcloud_pyvista(height_points, path_3d=None, dx=1.0, dy=1.0, heig
     point_cloud["Elevation"] = scaled_points[:, 2]
 
     plotter = pv.Plotter()
+    plotter.set_background(PYVISTA_BACKGROUND_COLOR)
     plotter.add_mesh(
         point_cloud, scalars="Elevation", cmap="terrain", point_size=PYVISTA_POINT_SIZE,
         render_points_as_spheres=True, label="Sampled Points (3D)",
@@ -381,6 +383,7 @@ def plot_terrain_surface_pyvista(terrain_matrix, dx=1.0, dy=1.0, path_3d=None):
         land_grid = grid
 
     plotter = pv.Plotter()
+    plotter.set_background(PYVISTA_BACKGROUND_COLOR)
     plotter.add_mesh(
         land_grid, scalars="Elevation", cmap="terrain", show_edges=False, label="3D Terrain",
         scalar_bar_args={"fmt": "%.0f", "title": "Elevation (m)"}
