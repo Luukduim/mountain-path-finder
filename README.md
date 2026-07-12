@@ -17,6 +17,8 @@ The code runs a pipeline to turn raw geographic data into a 3D path:
 7. **Path Smoothing**: Raw paths on a node network tend to have jagged corners. The code uses a parametric cubic spline to smooth out these sharp turns.
 8. **3D Visualization**: The final path is rendered over the terrain in 3D using PyVista.
 
+   ![3D Path Visualization](Notebook/rmpic.png)
+
 ---
 
 ## Project Structure
@@ -63,3 +65,22 @@ When you run `main.py`:
 1. An interactive Tkinter map window will open. You can pan/zoom to find your area of interest.
 2. Click the **Confirm & Export Bounding Box** button at the bottom of the map.
 3. The script will automatically query the STAC API, download and merge all intersecting Copernicus DEM tiles covering your bounding box, and prompt you to click a start and end point in the 2D window to compute the optimal 3D path.
+
+---
+
+## Capabilities & Limitations
+
+### Capabilities
+* **On-Demand DEM Streaming**: Queries the STAC API dynamically to fetch and merge Copernicus elevation tiles on the fly over HTTP (no need to manually download or store gigabytes of regional raster files).
+* **Adaptive Density (Quadtree)**: Varies graph node density dynamically based on terrain roughness (more nodes in steep valleys/cliffs for fine-grained planning, fewer nodes in flat areas to optimize memory and speed).
+* **Physics-Based Weighting**: 
+  * **Quadratic Slope Penalty**: Discourages scaling steep cliffs, pushing the pathfinder to seek gentler, winding routes.
+  * **Quadratic Water Crossing Penalty**: Scales quadratically with the width of the crossing, preventing the pathfinder from "swimming" across wide fjords or lakes, while naturally allowing crossings at narrow channels.
+* **GPU-Accelerated 3D Visuals**: Generates clean, interactive 3D mesh surface renderings (using PyVista/VTK) and automatically thresholds out ocean/water cells to prevent distorted cliff-edge artifacts.
+
+### Limitations
+* **Area Constraints**: Bounding box selections are capped (default $10,000\text{ km}^2$) to prevent planetary STAC timeouts and memory exhaustion.
+* **Network Connectivity**: Requires an active internet connection to query the STAC API and stream tiles.
+* **Discrete Edge Constraints**: The pathfinder is constrained to the Delaunay triangulation network of sampled points; it cannot plan paths *between* the network edges (though spline smoothing helps mitigate this).
+* **Binary Water Assumption**: Water bodies are treated as binary obstacles (either land or water) based on elevation $\le 0$ and the GSW mask; the model does not account for currents, depths, or tides. I might look into this in the future, though. 
+

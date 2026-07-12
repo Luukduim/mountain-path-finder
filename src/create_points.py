@@ -26,7 +26,8 @@ from src.config import (
     PYVISTA_Z_FIGHTING_OFFSET,
     PYVISTA_POINT_SIZE,
     PYVISTA_PATH_LINE_WIDTH_CLOUD,
-    PYVISTA_PATH_LINE_WIDTH_SURFACE
+    PYVISTA_PATH_LINE_WIDTH_SURFACE,
+    WATER_BODY_ELEVATION
 )
 
 # =====================================================================
@@ -372,9 +373,16 @@ def plot_terrain_surface_pyvista(terrain_matrix, dx=1.0, dy=1.0, path_3d=None):
     grid = pv.StructuredGrid(x_grid, y_grid, np.flipud(terrain_matrix))
     grid["Elevation"] = grid.points[:, 2]
 
+    # Filter out water body cells (which are set to WATER_BODY_ELEVATION)
+    # to avoid vertical drop-off cliffs at the shorelines.
+    try:
+        land_grid = grid.threshold(value=WATER_BODY_ELEVATION + 0.5, scalars="Elevation")
+    except Exception:
+        land_grid = grid
+
     plotter = pv.Plotter()
     plotter.add_mesh(
-        grid, scalars="Elevation", cmap="terrain", show_edges=False, label="3D Terrain",
+        land_grid, scalars="Elevation", cmap="terrain", show_edges=False, label="3D Terrain",
         scalar_bar_args={"fmt": "%.0f", "title": "Elevation (m)"}
     )
 

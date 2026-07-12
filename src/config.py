@@ -16,12 +16,12 @@ DEFAULT_RASTER_BAND = 1
 # =====================================================================
 DEFAULT_METRIC_RESOLUTION = 1.0
 GEOGRAPHIC_DEGREE_THRESHOLD = 0.1
-MAX_BBOX_AREA_KM2 = 5000.0  # Limit the size of STAC DEM query to 500 square kilometers
+MAX_BBOX_AREA_KM2 = 10000.0  # Limit the size of STAC DEM query to 500 square kilometers
 DEFAULT_BBOX_CANVAS_SIZE = 1000
 
 # Water Body Mask Config
 APPLY_WATER_BODY_MASK = True
-WATER_BODY_ELEVATION = -100
+WATER_BODY_ELEVATION = -1
 
 # =====================================================================
 # 3. Quadtree Decomposition Config
