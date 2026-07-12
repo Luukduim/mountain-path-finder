@@ -1,5 +1,7 @@
 # Programming-project: Mountain Path Finder
 
+![3D Path Visualization](Notebook/rmpic.png)
+
 This is a personal programming project that loads geographical elevation data (.tif files) and calculates an optimal hiking path through mountainous terrain. 
 
 I started this project because I wanted to learn how to work with geographical data in Python and apply some pathfinding ideas (like A* search) to real-world maps. I also wanted to find a good path for a hike in Norway, which is where the idea originally came from.
@@ -15,9 +17,6 @@ The code runs a pipeline to turn raw geographic data into a 3D path:
 5. **Delaunay Triangulation**: The sampled points are connected to their nearest neighbors using Delaunay triangulation to form a clean network of edges.
 6. **Graph and A* Search**: A graph is built using NetworKit. Edge weights are calculated based on 3D distance and slope (steep slopes are penalized quadratically). If an edge crosses a water body, a quadratic water crossing penalty proportional to the crossing distance ($\text{water\_penalty} \times \text{dist\_3d}^2$) is added to discourage swimming and encourage narrow stream crossings.
 7. **Path Smoothing**: Raw paths on a node network tend to have jagged corners. The code uses a parametric cubic spline to smooth out these sharp turns.
-8. **3D Visualization**: The final path is rendered over the terrain in 3D using PyVista.
-
-   ![3D Path Visualization](Notebook/rmpic.png)
 
 ---
 
