@@ -42,8 +42,8 @@ You will need Python 3.10 or newer.
 
 1. Clone the project:
    ```bash
-   git clone <repo-url>
-   cd noorwegen_project
+   git clone https://github.com/Luukduim/mountain-path-finder.git
+   cd mountain-path-finder
    ```
 
 2. Create a virtual environment and activate it:
