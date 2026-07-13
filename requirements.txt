@@ -13,3 +13,4 @@ trame-vuetify
 tkintermapview
 pystac-client
 planetary-computer
+pytest

@@ -25,7 +25,14 @@ The code runs a pipeline to turn raw geographic data into a 3D path:
 * **`main.py`**: The main script that runs the entire pipeline from loading the data to calculating the path and showing the 3D plot.
 * **`Notebook/optimal_mountain_path.ipynb`**: A notebook explaining the process, the math, and the logic behind the steps.
 * **`src/config.py`**: Holds all the variables and parameters (like max quadtree depth, slope penalty alpha, and sampling radius).
-* **`src/`**: Modular python files containing the code for loading, quadtree creation, sampling, graph creation, and point selection.
+* **`src/terrain.py`**: Handles loading COGs via STAC (`load_terrain`) and artificial terrain generation (`generate_terrain`).
+* **`src/interactive.py`**: Interactive UI widgets (`select_bbox_interactively`, `select_points`).
+* **`src/quadtree.py`**: Quadtree adaptive spatial decomposition and statistics (`quadtree_regions`, `calculate_region_stats`).
+* **`src/sampling.py`**: Poisson-disk sampling and 2D/3D point-cloud processing (`sample_poisson_disk_points_numba`, `build_height_point_cloud`).
+* **`src/triangulation.py`**: Delaunay triangulation edge extraction and border filtering (`get_edges`, `filter_border_edges`).
+* **`src/graph.py`**: NetworKit graph creation and physical slope/water edge weight functions (`make_graph`, `slope_penalty_weight`, `check_water_crossing`).
+* **`src/pathfinding.py`**: Core A* search and parametric cubic spline smoothing (`astar`, `smooth_path`).
+* **`src/visualization.py`**: 2D Matplotlib plots and GPU-accelerated 3D PyVista terrain/pointcloud visualizations.
 
 ---
 

@@ -16,23 +16,25 @@ from pystac_client import Client
 import planetary_computer
 
 # Import pipeline steps from modularized files
-from src.load_terrain import load_terrain, select_bbox_interactively
-from src.generate_terrain import generate_terrain
-from src.build_quadtree import quadtree_regions, calculate_region_stats, draw_quadtree
-from src.create_points import (
+from src.terrain import load_terrain, load_dem_from_stac, compute_metric_resolution
+from src.interactive import select_bbox_interactively, select_points
+from src.quadtree import quadtree_regions, calculate_region_stats, decompose_terrain_quadtree
+from src.sampling import (
     sample_poisson_disk_points_numba,
     round_and_clamp_points,
     filter_water_points,
     build_height_point_cloud,
-    get_edges,
+    find_nearest_point_index
+)
+from src.triangulation import get_edges, filter_border_edges
+from src.graph import make_graph
+from src.pathfinding import astar, smooth_path
+from src.visualization import (
+    draw_quadtree,
     plot_2d_delaunay,
     plot_3d_pointcloud_pyvista,
-    plot_terrain_surface_pyvista,
-    find_nearest_point_index,
-    filter_border_edges
+    plot_terrain_surface_pyvista
 )
-from src.create_graph import make_graph, astar, smooth_path
-from src.select_points import select_points
 from src.config import (
     DEFAULT_TERRAIN_PATH,
     DEFAULT_METRIC_RESOLUTION,
@@ -53,14 +55,16 @@ from src.config import (
 
 def main():
     
+    print("=" * 80)
+    print("MOUNTAIN PATH FINDER -- Opening terrain selection window...")
+    print("=" * 80 + "\n")
+    
     # 1. Generate/Load Terrain
     #file_path = DEFAULT_TERRAIN_PATH
     #terrain = load_terrain(file_path=file_path)
 
     catalog = Client.open("https://planetarycomputer.microsoft.com/api/stac/v1", modifier=planetary_computer.sign_inplace)
 
-    # Let user select bbox interactively
-    print("Opening map for bounding box selection...")
     bbox = select_bbox_interactively(start_lat=0.0, start_lon=0.0, zoom=1)
     if bbox is None:
         print("No bounding box selected. Using default (Norway region).")
@@ -75,6 +79,10 @@ def main():
     res_x, res_y = None, None
     bounds = None
     wbm_aligned = None
+
+    print("=" * 80)
+    print("Loading and merging terrain data... (could take a while)")
+    print("=" * 80 + "\n")
 
     if items:
         env_options = {
@@ -258,7 +266,7 @@ def main():
         print(f"Path successfully found containing {len(path_3d)} nodes.")
         if SMOOTH_PATH:
             print(f"Smoothing path with lam={SMOOTH_PATH_LAMBDA}")
-            path_3d = smooth_path(path_3d, terrain, lam=SMOOTH_PATH_LAMBDA)
+            path_3d = smooth_path(path_3d, terrain, lam=SMOOTH_PATH_LAMBDA, water_elevation=WATER_BODY_ELEVATION)
     else:
         print("Could not find a path between source and target.")
 

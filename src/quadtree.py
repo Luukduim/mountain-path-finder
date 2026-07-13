@@ -1,20 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from .config import (
     DEFAULT_QUADTREE_MAX_DEPTH,
     DEFAULT_QUADTREE_MIN_VARIANCE,
-    INITIAL_QUADTREE_MAX_DEPTH,
-    INITIAL_QUADTREE_MIN_VARIANCE,
-    VARIANCE_PERCENTILE_THRESHOLD,
-    MIN_SUBREGION_SIZE,
-    DEFAULT_FIGSIZE,
-    LINEWIDTH_QUADTREE_BORDER,
-    PROC_TERRAIN_SIZE,
-    PROC_TERRAIN_NUM_HILLS,
-    PROC_TERRAIN_ROUGHNESS,
-    PROC_TERRAIN_SEED
+    MIN_SUBREGION_SIZE
 )
+
 
 def quadtree_regions(matrix, x=0, y=0, h=None, w=None, depth=0, max_depth=DEFAULT_QUADTREE_MAX_DEPTH, min_variance=DEFAULT_QUADTREE_MIN_VARIANCE):
     """
@@ -61,41 +51,6 @@ def quadtree_regions(matrix, x=0, y=0, h=None, w=None, depth=0, max_depth=DEFAUL
     return regions
 
 
-def draw_quadtree(matrix, regions, max_depth=DEFAULT_QUADTREE_MAX_DEPTH, savepath=None, show=False, ax=None):
-    """Draws the terrain heatmap and overlays red quadtree leaf boundaries."""
-    if ax is None:
-        fig, ax = plt.subplots(figsize=DEFAULT_FIGSIZE)
-        created_fig = True
-    else:
-        fig = ax.get_figure()
-        created_fig = False
-
-    ax.imshow(matrix, cmap='viridis', interpolation='nearest', origin='lower', aspect='auto')
-    ax.set_box_aspect(1)
-    ax.grid(False)
-    ax.set_xlim(0, matrix.shape[1])
-    ax.set_ylim(0, matrix.shape[0])
-
-    # Draw a bounding rectangle for each leaf region
-    for reg in regions:
-        x, y, w, h = reg['x'], reg['y'], reg['w'], reg['h']
-        rect = patches.Rectangle(
-            (x, y), w, h,
-            linewidth=LINEWIDTH_QUADTREE_BORDER,
-            edgecolor='red',
-            facecolor='none',
-        )
-        ax.add_patch(rect)
-
-    ax.set_title('Quadtree Region Overlay')
-    if savepath and created_fig:
-        fig.savefig(savepath, bbox_inches='tight')
-    if show:
-        plt.show()
-    if created_fig:
-        plt.close(fig)
-
-
 def calculate_region_stats(matrix, regions):
     """Calculates variance and mean for an arbitrary list of bounding boxes."""
     stats = []
@@ -106,3 +61,19 @@ def calculate_region_stats(matrix, regions):
         mean = float(np.mean(sub)) if sub.size > 0 else 0.0
         stats.append({'x': x, 'y': y, 'w': w, 'h': h, 'var': var, 'mean': mean})
     return stats
+
+
+def decompose_terrain_quadtree(terrain, initial_max_depth, initial_min_variance, variance_percentile, final_max_depth):
+    """
+    Performs two-pass quadtree decomposition:
+    1. Computes initial regions and calculates 95th (or configured) percentile variance threshold.
+    2. Runs final quadtree decomposition with that threshold.
+    Returns (regions, min_variance).
+    """
+    initial_regions = quadtree_regions(terrain, max_depth=initial_max_depth, min_variance=initial_min_variance)
+    stats = calculate_region_stats(terrain, initial_regions)
+    stats_variances = [s['var'] for s in stats]
+
+    min_variance = np.percentile(stats_variances, variance_percentile) if len(stats_variances) > 0 else 0.0
+    regions = quadtree_regions(terrain, max_depth=final_max_depth, min_variance=min_variance)
+    return regions, min_variance
