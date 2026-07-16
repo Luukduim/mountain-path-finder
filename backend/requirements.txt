@@ -14,3 +14,5 @@ tkintermapview
 pystac-client
 planetary-computer
 pytest
+fastapi
+uvicorn[standard]
