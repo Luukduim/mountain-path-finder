@@ -1,6 +1,6 @@
 # Programming-project: Mountain Path Finder
 
-![3D Path Visualization](Notebook/rmpic2.png)
+![3D Path Visualization](backend/Notebook/rmpic2.png)
 
 This is a personal programming project that loads geographical elevation data (.tif files) and calculates an optimal hiking path through mountainous terrain. 
 
