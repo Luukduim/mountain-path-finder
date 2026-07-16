@@ -3,8 +3,8 @@
     <div class="font-logo text-3xl font-bold">Fjellrouter</div>
     
     <nav class="flex gap-8 text-xl font-semibold">
-      <a href="#" class="text-primary hover-transition hover:text-primary-hover">Home</a>
-      <a href="#" class="hover-transition hover:text-primary">Map</a>
+      <router-link to="/" class="hover-transition hover:text-primary-hover" active-class="text-primary">Home</router-link>
+      <router-link to="/map" class="hover-transition hover:text-primary" active-class="text-primary">Map</router-link>
       <a href="#" class="hover-transition hover:text-primary">Settings</a>
     </nav>
     

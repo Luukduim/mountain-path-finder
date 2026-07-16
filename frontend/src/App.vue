@@ -1,5 +1,4 @@
 <script setup>
-import HomeView from './views/HomeView.vue'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 </script>
@@ -8,8 +7,8 @@ import Footer from './components/Footer.vue'
   <div class="flex flex-col min-h-screen font-body text-white">
     <Navbar />
     
-    <main>
-      <HomeView />
+    <main class="flex-grow">
+      <router-view />
     </main>
 
     <Footer />

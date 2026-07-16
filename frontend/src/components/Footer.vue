@@ -11,9 +11,8 @@
     
     <div class="flex gap-16 text-s">
       <ul class="flex flex-col gap-2">
-        <li><a href="#" class="hover:text-primary hover-transition">Home</a></li>
-        <li><a href="#" class="hover:text-primary hover-transition">About</a></li>
-        <li><a href="#" class="hover:text-primary hover-transition">Map</a></li>
+        <li><router-link to="/" class="hover:text-primary hover-transition">Home</router-link></li>
+        <li><router-link to="/map" class="hover:text-primary hover-transition">Map</router-link></li>
         <li><a href="#" class="hover:text-primary hover-transition">Settings</a></li>
       </ul>
       <ul class="flex flex-col gap-2">
