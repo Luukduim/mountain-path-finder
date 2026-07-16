@@ -1,12 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 
-/* Cleared default Vue styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+
+@theme {
+  --color-dark: #0C0714;
+  --color-primary: #FF4649;
+  --color-primary-hover: #FF8A8C;
+
+  --font-logo: 'Crimson Text', serif;
+  --font-body: 'Anuphan', sans-serif;
 }
 
 body {
-  font-family: sans-serif;
+  font-family: var(--font-body);
+  background-color: var(--color-dark);
+  color: white;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .btn {
+    @apply px-6 py-3 font-semibold rounded transition-all duration-200 ease-in-out cursor-pointer inline-flex items-center justify-center;
+  }
+
+  .btn-sm {
+    @apply px-4 py-1.5 text-sm;
+  }
+
+  .btn-outline {
+    @apply border border-2 border-primary transition-all duration-200 ease-in-out text-primary hover:bg-primary hover:text-dark;
+  }
+
+  .btn-outline-white {
+    @apply border border-2 border-white transition-all duration-200 ease-in-out text-white hover:bg-white hover:text-dark;
+  }
+
+  .hover-transition {
+    @apply transition-all duration-200 ease-in-out;
+  }
 }

@@ -1,28 +1,17 @@
 <script setup>
-import Navbar from './components/Navbar.vue'
 import HomeView from './views/HomeView.vue'
+import Navbar from './components/Navbar.vue'
+import Footer from './components/Footer.vue'
 </script>
 
 <template>
-  <div class="app-container">
+  <div class="flex flex-col min-h-screen font-body text-white">
     <Navbar />
+    
     <main>
       <HomeView />
     </main>
+
+    <Footer />
   </div>
 </template>
-
-<style>
-/* Remove default margins/padding if they exist */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: sans-serif;
-}
-
-.app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-</style>
