@@ -1,4 +1,5 @@
 from src.pathfinding import astar, smooth_path
+from src.config import SMOOTH_PATH_LAMBDA
 
 class PathfindingEngine:
     """
@@ -18,7 +19,7 @@ class PathfindingEngine:
             dy=terrain_manager.dy
         )
 
-    def smooth_path(self, path_3d, terrain_manager, lam=1.0):
+    def smooth_path(self, path_3d, terrain_manager, lam=SMOOTH_PATH_LAMBDA):
         """
         Creates a smooth path between the source and target points.
         """

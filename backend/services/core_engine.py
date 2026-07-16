@@ -2,6 +2,7 @@ from .terrain_service import TerrainManager
 from .mesh_service import MeshBuilder
 from .graph_service import GraphManager
 from .pathfinding_service import PathfindingEngine
+from src.config import SMOOTH_PATH_LAMBDA
 
 class MountainPathFinder:
     """
@@ -30,7 +31,7 @@ class MountainPathFinder:
         self.mesh.build(self.terrain)
         self.graph.build_from_mesh(self.mesh.height_points, self.mesh.edges, self.terrain)
 
-    def find_path(self, start_pixel, end_pixel, smooth=True, lam=1.0):
+    def find_path(self, start_pixel, end_pixel, smooth=True, lam=SMOOTH_PATH_LAMBDA):
         """
         Finds a path between two pixel coordinates (x, y).
         

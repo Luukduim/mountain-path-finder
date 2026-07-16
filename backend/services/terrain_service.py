@@ -13,21 +13,26 @@ class TerrainManager:
         self.res_y = None
         self.bounds = None
         self.wbm_mask = None
+        self.transform = None
         self.dx = 1.0
         self.dy = 1.0
         self.water_elevation = water_elevation
 
     def load_from_file(self, file_path):
         """Loads a single-band GeoTIFF heightmap file."""
+        import rasterio
         self.matrix = load_terrain(file_path)
-        # Note: The original load_terrain doesn't return res_x/res_y, but we can compute dx/dy if needed
+        with rasterio.open(file_path) as src:
+            self.transform = src.transform
+            self.bounds = src.bounds
+            self.res_x, self.res_y = src.res
         self.dx, self.dy = compute_metric_resolution(self.res_x, self.res_y, self.bounds)
 
     def load_from_stac(self, bbox, apply_wbm=True):
         """
         Queries Microsoft Planetary Computer STAC catalog for DEM tiles covering bbox.
         """
-        self.matrix, self.res_x, self.res_y, self.bounds, self.wbm_mask = load_dem_from_stac(
+        self.matrix, self.res_x, self.res_y, self.bounds, self.wbm_mask, self.transform = load_dem_from_stac(
             bbox, apply_wbm=apply_wbm, water_elevation=self.water_elevation
         )
         self.dx, self.dy = compute_metric_resolution(self.res_x, self.res_y, self.bounds)

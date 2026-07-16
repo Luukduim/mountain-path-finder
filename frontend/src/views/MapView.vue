@@ -196,9 +196,9 @@ const calculateRoute = async () => {
       
       // Draw path
       routePolyline = L.polyline(coordinates, {
-        color: '#00d2ff',
+        color: '#ff3b30',
         weight: 5,
-        opacity: 0.9,
+        opacity: 0.95,
         lineCap: 'round',
         lineJoin: 'round',
         className: 'route-line'
@@ -235,6 +235,6 @@ const calculateRoute = async () => {
   border: none;
 }
 .route-line {
-  filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.6));
+  filter: drop-shadow(0 0 8px rgba(255, 59, 48, 0.7));
 }
 </style>

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from schemas import PathRequest, PathResponse, Point3D
 from services.core_engine import MountainPathFinder
+import rasterio.transform
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,8 +11,14 @@ router = APIRouter(
     tags=["Pathfinding"],
 )
 
-def latlon_to_pixel(lat, lon, bounds, width, height):
+def latlon_to_pixel(lat, lon, bounds, width, height, transform=None):
     """Converts geographic coordinates to image pixel coordinates."""
+    if transform is not None:
+        row, col = rasterio.transform.rowcol(transform, lon, lat)
+        x_pixel = max(0, min(width - 1, int(col)))
+        y_pixel = max(0, min(height - 1, int(row)))
+        return x_pixel, y_pixel
+
     left, bottom, right, top = bounds
     
     # Clamp coordinates to bounds
@@ -26,8 +33,12 @@ def latlon_to_pixel(lat, lon, bounds, width, height):
     
     return x_pixel, y_pixel
 
-def pixel_to_latlon(x, y, bounds, width, height):
+def pixel_to_latlon(x, y, bounds, width, height, transform=None):
     """Converts image pixel coordinates back to geographic coordinates."""
+    if transform is not None:
+        lon, lat = rasterio.transform.xy(transform, y, x, offset='center')
+        return lat, lon
+
     left, bottom, right, top = bounds
     
     lon = left + (x / width) * (right - left)
@@ -64,9 +75,10 @@ def find_path(request: PathRequest):
         bounds = engine.terrain.bounds
         width = engine.terrain.width
         height = engine.terrain.height
+        transform = engine.terrain.transform
         
-        start_pixel = latlon_to_pixel(request.start.lat, request.start.lon, bounds, width, height)
-        end_pixel = latlon_to_pixel(request.end.lat, request.end.lon, bounds, width, height)
+        start_pixel = latlon_to_pixel(request.start.lat, request.start.lon, bounds, width, height, transform=transform)
+        end_pixel = latlon_to_pixel(request.end.lat, request.end.lon, bounds, width, height, transform=transform)
         
         logger.info("Finding path...")
         path_3d_pixels, src_idx, tgt_idx = engine.find_path(
@@ -86,7 +98,7 @@ def find_path(request: PathRequest):
         geo_path = []
         for point in path_3d_pixels:
             x_pix, y_pix, z_elevation = point[0], point[1], point[2]
-            lat, lon = pixel_to_latlon(x_pix, y_pix, bounds, width, height)
+            lat, lon = pixel_to_latlon(x_pix, y_pix, bounds, width, height, transform=transform)
             geo_path.append(Point3D(x=lon, y=lat, z=z_elevation))
             
         return PathResponse(

@@ -2,6 +2,7 @@ import rasterio
 import numpy as np
 from rasterio.merge import merge
 from rasterio.warp import reproject, Resampling
+from rasterio.transform import array_bounds
 from pystac_client import Client
 import planetary_computer
 
@@ -103,6 +104,7 @@ def load_dem_from_stac(bbox, apply_wbm=True, water_elevation=-9999.0):
     res_x, res_y = None, None
     bounds = None
     wbm_aligned = None
+    out_trans = None
 
     env_options = {
         'GDAL_DISABLE_READDIR_ON_OPEN': 'EMPTY_DIR',
@@ -123,7 +125,7 @@ def load_dem_from_stac(bbox, apply_wbm=True, water_elevation=-9999.0):
                 mosaic, out_trans = merge(src_files, bounds=bbox)
                 terrain = mosaic[0].astype(np.float32)
                 res_x, res_y = src_files[0].res
-                bounds = src_files[0].bounds
+                bounds = array_bounds(terrain.shape[0], terrain.shape[1], out_trans)
                 print(f"Successfully loaded and merged {len(src_files)} tiles covering the selected bounding box.")
 
                 if apply_wbm:
@@ -170,7 +172,7 @@ def load_dem_from_stac(bbox, apply_wbm=True, water_elevation=-9999.0):
                 src.close()
 
     terrain[terrain <= 0.0] = water_elevation
-    return terrain, res_x, res_y, bounds, wbm_aligned
+    return terrain, res_x, res_y, bounds, wbm_aligned, out_trans
 
 
 def compute_metric_resolution(res_x, res_y, bounds, default_res=1.0):
