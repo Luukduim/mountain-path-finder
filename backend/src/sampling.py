@@ -228,7 +228,7 @@ def build_height_point_cloud(points, matrix):
     """Vectorized: Convert 2D coordinates [x, y] to 3D point cloud [x, y, z] using height values."""
     if points.size == 0:
         return np.empty((0, 3), dtype=float)
-    z = matrix[points[:, 1], points[:, 0]]
+    z = matrix[np.round(points[:, 1]).astype(int), np.round(points[:, 0]).astype(int)]
     return np.column_stack((points, z)).astype(float)
 
 
@@ -238,3 +238,52 @@ def find_nearest_point_index(points, coord):
         raise ValueError("Cannot find nearest point in an empty array.")
     distances = np.sum((points - np.array(coord)) ** 2, axis=1)
     return np.argmin(distances)
+
+
+def inject_exact_endpoints(points, endpoints, min_dist=1.5):
+    """
+    Injects exact start and end coordinates into the 2D point cloud while preventing
+    degenerate 'sliver' triangles by removing any existing Poisson points that are too close.
+    
+    Parameters:
+        points (np.ndarray): Array of shape (N, 2) representing 2D coordinates.
+        endpoints (list): Sequence of optional coordinate tuples/arrays [(x1, y1), (x2, y2), ...].
+        min_dist (float): Minimum Euclidean distance required between an endpoint and existing points.
+        
+    Returns:
+        tuple: (updated_points, injected_indices) where updated_points is the modified point cloud
+               and injected_indices is a list of the exact array indices corresponding to each non-None endpoint.
+    """
+    if len(points) == 0:
+        valid_pts = [np.array(pt) for pt in endpoints if pt is not None]
+        if not valid_pts:
+            return points, [None for _ in endpoints]
+        out_pts = np.array(valid_pts, dtype=points.dtype if points.dtype != object else float)
+        return out_pts, list(range(len(out_pts)))
+
+    pts = np.copy(points)
+    to_remove = set()
+    
+    for pt in endpoints:
+        if pt is None:
+            continue
+        pt_arr = np.array(pt)
+        dists = np.sqrt(np.sum((pts - pt_arr) ** 2, axis=1))
+        close_indices = np.where(dists < min_dist)[0]
+        for idx in close_indices:
+            to_remove.add(idx)
+            
+    if to_remove:
+        pts = np.delete(pts, sorted(list(to_remove)), axis=0)
+        
+    injected_indices = []
+    for pt in endpoints:
+        if pt is None:
+            injected_indices.append(None)
+            continue
+        pt_arr = np.array(pt, dtype=pts.dtype)
+        pts = np.vstack((pts, pt_arr))
+        injected_indices.append(len(pts) - 1)
+        
+    return pts, injected_indices
+

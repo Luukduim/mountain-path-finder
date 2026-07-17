@@ -259,22 +259,8 @@ const calculateRoute = async () => {
       // Backend returns [{x: lon, y: lat, z: elev}, ...]
       const fullPath = [...data.path];
       
-      // The backend pathfinding runs on a discrete terrain grid, so the first and last 
-      // nodes of the path are the centers of the nearest grid cells. To make the line 
-      // perfectly connect to the markers visually, we add the exact coordinates.
-      if (fullPath.length > 0) {
-        fullPath.unshift({
-          x: startLocation.value.lon,
-          y: startLocation.value.lat,
-          z: fullPath[0].z // Inherit elevation from first node
-        });
-        fullPath.push({
-          x: endLocation.value.lon,
-          y: endLocation.value.lat,
-          z: fullPath[fullPath.length - 1].z // Inherit elevation from last node
-        });
-      }
-      
+      // Because the backend now injects exact requested start and end points into the Delaunay 
+      // triangulation before pathfinding, the first and last nodes naturally match the markers exactly.
       console.log('Successfully retrieved path from backend!')
       console.log('Number of nodes:', fullPath.length)
       

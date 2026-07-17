@@ -3,7 +3,8 @@ from src.sampling import (
     round_and_clamp_points,
     filter_water_points,
     build_height_point_cloud,
-    find_nearest_point_index
+    find_nearest_point_index,
+    inject_exact_endpoints
 )
 
 
@@ -78,3 +79,37 @@ def test_find_nearest_point_index():
     ])
     idx = find_nearest_point_index(points, (11.0, 9.0))
     assert idx == 1
+
+
+def test_inject_exact_endpoints():
+    points = np.array([
+        [0.0, 0.0],
+        [10.0, 10.0],
+        [50.0, 50.0]
+    ])
+    endpoints = [(5.0, 5.0), (40.0, 40.0)]
+    updated, indices = inject_exact_endpoints(points, endpoints, min_dist=1.5)
+    
+    assert len(updated) == 5
+    assert indices == [3, 4]
+    assert np.all(updated[3] == [5.0, 5.0])
+    assert np.all(updated[4] == [40.0, 40.0])
+
+
+def test_inject_exact_endpoints_replaces_close_neighbor():
+    points = np.array([
+        [0.0, 0.0],
+        [10.0, 10.0],  # Close to start endpoint (10.5, 10.5 -> dist ~0.707)
+        [50.0, 50.0]
+    ])
+    endpoints = [(10.5, 10.5), (80.0, 80.0)]
+    updated, indices = inject_exact_endpoints(points, endpoints, min_dist=1.5)
+    
+    # Original point [10.0, 10.0] should be removed because it lies within 1.5 of (10.5, 10.5)
+    assert len(updated) == 4
+    # The remaining points should be [0.0, 0.0], [50.0, 50.0], plus the 2 injected endpoints
+    assert not np.any(np.all(updated == [10.0, 10.0], axis=1))
+    assert indices == [2, 3]
+    assert np.all(updated[2] == [10.5, 10.5])
+    assert np.all(updated[3] == [80.0, 80.0])
+

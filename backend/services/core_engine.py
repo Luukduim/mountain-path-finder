@@ -23,12 +23,12 @@ class MountainPathFinder:
         """Loads terrain from a local GeoTIFF file."""
         self.terrain.load_from_file(filepath)
 
-    def build_graph(self):
+    def build_graph(self, start_pixel=None, end_pixel=None):
         """Generates the mesh and graph from the currently loaded terrain."""
         if self.terrain.matrix is None:
             raise ValueError("Terrain must be loaded before building the graph.")
             
-        self.mesh.build(self.terrain)
+        self.mesh.build(self.terrain, start_pixel=start_pixel, end_pixel=end_pixel)
         self.graph.build_from_mesh(self.mesh.height_points, self.mesh.edges, self.terrain)
 
     def find_path(self, start_pixel, end_pixel, smooth=True, lam=SMOOTH_PATH_LAMBDA):
@@ -41,8 +41,8 @@ class MountainPathFinder:
         if self.graph.nk_graph is None:
             raise ValueError("Graph must be built before finding a path.")
             
-        source_idx = self.graph.get_nearest_node(start_pixel[0], start_pixel[1])
-        target_idx = self.graph.get_nearest_node(end_pixel[0], end_pixel[1])
+        source_idx = self.mesh.source_idx if self.mesh.source_idx is not None else self.graph.get_nearest_node(start_pixel[0], start_pixel[1])
+        target_idx = self.mesh.target_idx if self.mesh.target_idx is not None else self.graph.get_nearest_node(end_pixel[0], end_pixel[1])
         
         path_3d = self.engine.find_path(self.graph, self.terrain, source_idx, target_idx)
         

@@ -24,7 +24,8 @@ from src.sampling import (
     round_and_clamp_points,
     filter_water_points,
     build_height_point_cloud,
-    find_nearest_point_index
+    find_nearest_point_index,
+    inject_exact_endpoints
 )
 from src.triangulation import get_edges, filter_border_edges
 from src.graph import make_graph
@@ -219,6 +220,8 @@ def main():
     points = round_and_clamp_points(raw_points, width, height)
     if APPLY_WATER_BODY_MASK:
         points = filter_water_points(points, terrain, wbm_mask=wbm_aligned, water_elevation=WATER_BODY_ELEVATION)
+    if start_coord is not None or end_coord is not None:
+        points, _ = inject_exact_endpoints(points, [start_coord, end_coord], min_dist=1.5)
     height_points = build_height_point_cloud(points, terrain)
     print(f"Sampled {len(height_points)} 3D points.")
 
