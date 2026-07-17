@@ -25,6 +25,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(pathfinding.router)
+from routers import settings
+app.include_router(settings.router)
 
 @app.get("/health", tags=["System"])
 def health_check():

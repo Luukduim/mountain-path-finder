@@ -311,7 +311,7 @@ const calculateRoute = async () => {
     <!-- SIDEBAR -->
     <aside class="w-full md:w-96 bg-dark p-6 flex flex-col gap-8 shadow-2xl z-[1000] overflow-y-auto">
       <div>
-        <h2 class="text-2xl font-bold  mb-2">Route planner</h2>
+        <h2 class="text-2xl font-bold mb-2">Route planner</h2>
         <p class="text-sm ">Configure your start and end points to generate the optimal path</p>
       </div>
 

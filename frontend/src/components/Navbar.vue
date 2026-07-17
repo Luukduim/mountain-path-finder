@@ -5,7 +5,7 @@
     <nav class="flex gap-8 text-xl font-semibold">
       <router-link to="/" class="hover-transition hover:text-primary-hover" active-class="text-primary">Home</router-link>
       <router-link to="/map" class="hover-transition hover:text-primary" active-class="text-primary">Map</router-link>
-      <a href="#" class="hover-transition hover:text-primary">Settings</a>
+      <router-link to="/settings" class="hover-transition hover:text-primary" active-class="text-primary">Settings</router-link>
     </nav>
     
     <div class="flex items-center gap-4">
