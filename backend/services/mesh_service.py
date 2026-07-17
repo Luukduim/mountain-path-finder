@@ -4,7 +4,8 @@ from src.sampling import (
     sample_poisson_disk_points_numba,
     round_and_clamp_points,
     filter_water_points,
-    build_height_point_cloud
+    build_height_point_cloud,
+    inject_exact_endpoints
 )
 from src.triangulation import get_edges, filter_border_edges
 from src.config import (
@@ -27,8 +28,10 @@ class MeshBuilder:
         self.points = None
         self.height_points = None
         self.edges = None
+        self.source_idx = None
+        self.target_idx = None
 
-    def build(self, terrain_manager):
+    def build(self, terrain_manager, start_pixel=None, end_pixel=None):
         """
         Builds the mesh from a TerrainManager instance.
         """
@@ -64,6 +67,16 @@ class MeshBuilder:
                 wbm_mask=terrain_manager.wbm_mask, 
                 water_elevation=terrain_manager.water_elevation
             )
+            
+        if start_pixel is not None or end_pixel is not None:
+            print("Injecting exact start and end points into point cloud...")
+            self.points, injected_indices = inject_exact_endpoints(
+                self.points, [start_pixel, end_pixel], min_dist=1.5
+            )
+            if start_pixel is not None and len(injected_indices) > 0 and injected_indices[0] is not None:
+                self.source_idx = injected_indices[0]
+            if end_pixel is not None and len(injected_indices) > 1 and injected_indices[1] is not None:
+                self.target_idx = injected_indices[1]
             
         self.height_points = build_height_point_cloud(self.points, terrain_manager.matrix)
         print(f"Sampled {len(self.height_points)} 3D points.")

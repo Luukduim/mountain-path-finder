@@ -62,6 +62,10 @@ def smooth_path(path_3d, terrain, lam=1.0, water_elevation=WATER_BODY_ELEVATION)
     x_coords = spline_x(t_values)
     y_coords = spline_y(t_values)
 
+    # Strictly anchor the start and end of the smoothed path to the exact start and end coordinates
+    x_coords[0], y_coords[0] = path_3d[0, 0], path_3d[0, 1]
+    x_coords[-1], y_coords[-1] = path_3d[-1, 0], path_3d[-1, 1]
+
     h, w = terrain.shape
     x_coords = np.clip(x_coords, 0, w - 1)
     y_coords = np.clip(y_coords, 0, h - 1)

@@ -3,6 +3,7 @@ from schemas import PathRequest, PathResponse, Point3D
 from services.core_engine import MountainPathFinder
 import rasterio.transform
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +13,11 @@ router = APIRouter(
 )
 
 def latlon_to_pixel(lat, lon, bounds, width, height, transform=None):
-    """Converts geographic coordinates to image pixel coordinates."""
+    """Converts geographic coordinates to continuous image pixel coordinates (floats)."""
     if transform is not None:
-        row, col = rasterio.transform.rowcol(transform, lon, lat)
-        x_pixel = max(0, min(width - 1, int(col)))
-        y_pixel = max(0, min(height - 1, int(row)))
+        col, row = ~transform * (lon, lat)
+        x_pixel = max(0.0, min(float(width - 1), float(col)))
+        y_pixel = max(0.0, min(float(height - 1), float(row)))
         return x_pixel, y_pixel
 
     left, bottom, right, top = bounds
@@ -28,21 +29,24 @@ def latlon_to_pixel(lat, lon, bounds, width, height, transform=None):
     x_percent = (lon - left) / (right - left)
     y_percent = (top - lat) / (top - bottom) # y is inverted
     
-    x_pixel = int(x_percent * width)
-    y_pixel = int(y_percent * height)
+    x_pixel = x_percent * (width - 1)
+    y_pixel = y_percent * (height - 1)
     
     return x_pixel, y_pixel
 
 def pixel_to_latlon(x, y, bounds, width, height, transform=None):
     """Converts image pixel coordinates back to geographic coordinates."""
     if transform is not None:
-        lon, lat = rasterio.transform.xy(transform, y, x, offset='center')
+        if isinstance(x, (int, np.integer)) or (isinstance(x, float) and x.is_integer()):
+            lon, lat = rasterio.transform.xy(transform, y, x, offset='center')
+        else:
+            lon, lat = transform * (x, y)
         return lat, lon
 
     left, bottom, right, top = bounds
     
-    lon = left + (x / width) * (right - left)
-    lat = top - (y / height) * (top - bottom)
+    lon = left + (x / (width - 1)) * (right - left)
+    lat = top - (y / (height - 1)) * (top - bottom)
     
     return lat, lon
 
@@ -68,9 +72,6 @@ def find_path(request: PathRequest):
         logger.info("Loading terrain from STAC...")
         engine.load_terrain_from_stac(bbox)
         
-        logger.info("Building mesh and graph...")
-        engine.build_graph()
-        
         # Convert requested lat/lon to pixel coordinates
         bounds = engine.terrain.bounds
         width = engine.terrain.width
@@ -79,6 +80,9 @@ def find_path(request: PathRequest):
         
         start_pixel = latlon_to_pixel(request.start.lat, request.start.lon, bounds, width, height, transform=transform)
         end_pixel = latlon_to_pixel(request.end.lat, request.end.lon, bounds, width, height, transform=transform)
+        
+        logger.info("Building mesh and graph with exact start/end points injected...")
+        engine.build_graph(start_pixel=start_pixel, end_pixel=end_pixel)
         
         logger.info("Finding path...")
         path_3d_pixels, src_idx, tgt_idx = engine.find_path(
@@ -96,9 +100,15 @@ def find_path(request: PathRequest):
             
         # Convert pixel coordinates back to geographic coordinates for the frontend
         geo_path = []
-        for point in path_3d_pixels:
+        n_points = len(path_3d_pixels)
+        for i, point in enumerate(path_3d_pixels):
             x_pix, y_pix, z_elevation = point[0], point[1], point[2]
-            lat, lon = pixel_to_latlon(x_pix, y_pix, bounds, width, height, transform=transform)
+            if i == 0 and src_idx == engine.mesh.source_idx:
+                lat, lon = request.start.lat, request.start.lon
+            elif i == n_points - 1 and tgt_idx == engine.mesh.target_idx:
+                lat, lon = request.end.lat, request.end.lon
+            else:
+                lat, lon = pixel_to_latlon(x_pix, y_pix, bounds, width, height, transform=transform)
             geo_path.append(Point3D(x=lon, y=lat, z=z_elevation))
             
         return PathResponse(
