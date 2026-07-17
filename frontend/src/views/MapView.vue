@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, watch, computed } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -54,7 +54,7 @@ const mapStyles = [
   }
 ]
 
-const map = ref(null)
+const map = shallowRef(null)
 
 const currentMapStyleId = ref('osm')
 const isDarkFilter = computed(() => {
