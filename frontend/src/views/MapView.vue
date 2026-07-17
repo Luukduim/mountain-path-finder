@@ -68,6 +68,8 @@ const pinningMode = ref(null)
 const isLoading = ref(false)
 const distance = ref('-- km')
 const estTime = ref('--')
+const colorMode = ref('elevation')
+const currentPathData = ref(null)
 
 let startMarker = null
 let endMarker = null
@@ -161,6 +163,64 @@ onUnmounted(() => {
   }
 })
 
+const drawRoute = () => {
+  if (!currentPathData.value) return;
+  const fullPath = currentPathData.value;
+  
+  if (routePolyline) {
+    map.value.removeLayer(routePolyline)
+  }
+  
+  if (colorMode.value === 'primary') {
+    // Normal primary color
+    const coordinates = fullPath.map(p => [p.y, p.x]);
+    routePolyline = L.polyline(coordinates, {
+      color: '#ff3b30',
+      weight: 5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round',
+      className: 'route-line'
+    }).addTo(map.value)
+  } else {
+    // Elevation colored
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    fullPath.forEach(p => {
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    });
+    
+    routePolyline = L.featureGroup().addTo(map.value)
+    
+    for (let i = 0; i < fullPath.length - 1; i++) {
+      const p1 = fullPath[i];
+      const p2 = fullPath[i+1];
+      
+      const avgZ = (p1.z + p2.z) / 2;
+      
+      let ratio = maxZ === minZ ? 0 : (avgZ - minZ) / (maxZ - minZ);
+      const hue = (1 - ratio) * 120;
+      const lightness = 45 - (ratio * 25);
+      const color = `hsl(${hue}, 100%, ${lightness}%)`;
+      
+      L.polyline([[p1.y, p1.x], [p2.y, p2.x]], {
+        color: color,
+        weight: 6,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(routePolyline);
+    }
+  }
+  
+  routePolyline.bringToBack()
+}
+
+watch(colorMode, () => {
+  drawRoute()
+})
+
 const calculateRoute = async () => {
   if (!startLocation.value || !endLocation.value) return
   
@@ -197,36 +257,30 @@ const calculateRoute = async () => {
     
     if (data.status === 'success' && data.path.length > 0) {
       // Backend returns [{x: lon, y: lat, z: elev}, ...]
-      // Leaflet polylines expect [lat, lon]
-      const coordinates = data.path.map(p => [p.y, p.x])
+      const fullPath = [...data.path];
       
       // The backend pathfinding runs on a discrete terrain grid, so the first and last 
       // nodes of the path are the centers of the nearest grid cells. To make the line 
       // perfectly connect to the markers visually, we add the exact coordinates.
-      if (coordinates.length > 0) {
-        coordinates.unshift([startLocation.value.lat, startLocation.value.lon])
-        coordinates.push([endLocation.value.lat, endLocation.value.lon])
+      if (fullPath.length > 0) {
+        fullPath.unshift({
+          x: startLocation.value.lon,
+          y: startLocation.value.lat,
+          z: fullPath[0].z // Inherit elevation from first node
+        });
+        fullPath.push({
+          x: endLocation.value.lon,
+          y: endLocation.value.lat,
+          z: fullPath[fullPath.length - 1].z // Inherit elevation from last node
+        });
       }
+      
       console.log('Successfully retrieved path from backend!')
-      console.log('Number of nodes:', coordinates.length)
-      console.log('Path coordinates [lat, lon]:', coordinates)
+      console.log('Number of nodes:', fullPath.length)
       
-      if (routePolyline) {
-        map.value.removeLayer(routePolyline)
-      }
-      
-      // Draw path
-      routePolyline = L.polyline(coordinates, {
-        color: '#ff3b30',
-        weight: 5,
-        opacity: 0.95,
-        lineCap: 'round',
-        lineJoin: 'round',
-        className: 'route-line'
-      }).addTo(map.value)
-      
-      // Ensure the line renders behind the point markers
-      routePolyline.bringToBack()
+      // Save path and draw it
+      currentPathData.value = fullPath;
+      drawRoute();
       
       // Dummy distance calculation for UI purposes
       const dx = endLocation.value.lon - startLocation.value.lon
@@ -270,6 +324,17 @@ const calculateRoute = async () => {
               {{ style.name }}
             </option>
           </select>
+        </div>
+
+        <!-- Elevation Color Toggle -->
+        <div>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-white cursor-pointer" @click="colorMode = colorMode === 'elevation' ? 'primary' : 'elevation'">Elevation colors</label>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" v-model="colorMode" true-value="elevation" false-value="primary" class="sr-only peer">
+            <div class="w-11 h-6 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
         </div>
 
         <!-- Start Point -->
