@@ -1,7 +1,8 @@
 <script setup>
-import { ref, shallowRef, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import Plotly from 'plotly.js-dist-min'
 
 const mapStyles = [
   {
@@ -56,7 +57,7 @@ const mapStyles = [
 
 const map = shallowRef(null)
 
-const currentMapStyleId = ref('osm')
+const currentMapStyleId = ref('topo-dark')
 const isDarkFilter = computed(() => {
   const style = mapStyles.find(s => s.id === currentMapStyleId.value)
   return style ? style.darkFilter : false
@@ -70,16 +71,180 @@ const distance = ref('-- km')
 const estTime = ref('--')
 const colorMode = ref('elevation')
 const currentPathData = ref(null)
+const currentSampledPoints = ref(null)
+const currentSimplices = ref(null)
+const currentBBox = ref(null)
+const is3DView = ref(false)
+
+// Ready-to-use Plotly traces generator for 3D visualization
+const plotlyTraces = computed(() => {
+  if (!currentSampledPoints.value || !currentPathData.value) return []
+  
+  const traces = []
+  
+  // 1. Terrain Mesh or Point Cloud Trace
+  const colorbarConfig = {
+    title: {
+      text: 'Elevation (m)',
+      font: { color: '#ffffff', size: 12 },
+      side: 'top'
+    },
+    tickfont: { color: '#a1a1aa', size: 11 },
+    thickness: 14,
+    len: 0.65,
+    x: 0.95,
+    y: 0.5,
+    bgcolor: 'rgba(12, 7, 20, 0.75)',
+    bordercolor: 'rgba(255, 255, 255, 0.1)',
+    borderwidth: 1,
+    outlinewidth: 0
+  }
+
+  if (currentSimplices.value && currentSimplices.value.length > 0) {
+    traces.push({
+      type: 'mesh3d',
+      name: 'Terrain Mesh',
+      x: currentSampledPoints.value.map(p => p.x),
+      y: currentSampledPoints.value.map(p => p.y),
+      z: currentSampledPoints.value.map(p => p.z),
+      i: currentSimplices.value.map(t => t[0]),
+      j: currentSimplices.value.map(t => t[1]),
+      k: currentSimplices.value.map(t => t[2]),
+      colorscale: 'Earth',
+      intensity: currentSampledPoints.value.map(p => p.z),
+      opacity: 1.0,
+      hoverinfo: 'x+y+z',
+      colorbar: colorbarConfig
+    })
+  } else {
+    traces.push({
+      type: 'scatter3d',
+      mode: 'markers',
+      name: 'Sampled Terrain Points',
+      x: currentSampledPoints.value.map(p => p.x),
+      y: currentSampledPoints.value.map(p => p.y),
+      z: currentSampledPoints.value.map(p => p.z),
+      marker: {
+        size: 2,
+        color: currentSampledPoints.value.map(p => p.z),
+        colorscale: 'Earth',
+        opacity: 1.0,
+        colorbar: colorbarConfig
+      }
+    })
+  }
+
+  // 2. 3D Path Trace
+  traces.push({
+    type: 'scatter3d',
+    mode: 'lines',
+    name: 'Optimal Route',
+    x: currentPathData.value.map(p => p.x),
+    y: currentPathData.value.map(p => p.y),
+    z: currentPathData.value.map(p => p.z + 25),
+    line: {
+      color: '#ff3b30',
+      width: 8
+    }
+  })
+
+  return traces
+})
+
+const renderPlotly3D = () => {
+  if (!plotlyTraces.value || plotlyTraces.value.length === 0 || !currentSampledPoints.value) return
+  
+  // Calculate exact physical bounding box dimensions in meters from geographic coordinates
+  const lons = currentSampledPoints.value.map(p => p.x)
+  const lats = currentSampledPoints.value.map(p => p.y)
+  const elevs = currentSampledPoints.value.map(p => p.z)
+  
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons)
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+  const minElev = Math.min(...elevs), maxElev = Math.max(...elevs)
+  
+  // Convert degree spans to metric distances using ~111,320m per degree lat and cos(lat) for lon
+  const avgLatRad = ((minLat + maxLat) / 2) * (Math.PI / 180)
+  const spanX_m = (maxLon - minLon) * 111320 * Math.cos(avgLatRad)
+  const spanY_m = (maxLat - minLat) * 111320
+  const spanZ_m = Math.max(maxElev - minElev, 10)
+  
+  // Normalize by the largest horizontal span to get true physical scale ratios
+  const maxHoriz_m = Math.max(spanX_m, spanY_m)
+  const ratioX = spanX_m / maxHoriz_m
+  const ratioY = spanY_m / maxHoriz_m
+  // Apply a subtle 1.5x vertical exaggeration to physical Z ratio for clear mountain relief viewing
+  const ratioZ = Math.max((spanZ_m / maxHoriz_m) * 1.5, 0.15)
+
+  Plotly.newPlot('plotly-3d-map', plotlyTraces.value, {
+    paper_bgcolor: '#0c0714',
+    plot_bgcolor: '#0c0714',
+    scene: {
+      xaxis: { 
+        title: 'Longitude', 
+        color: '#a1a1aa', 
+        gridcolor: 'rgba(255, 255, 255, 0.08)',
+        zerolinecolor: 'rgba(255, 255, 255, 0.15)',
+        showbackground: true,
+        backgroundcolor: 'rgba(18, 12, 28, 0.4)'
+      },
+      yaxis: { 
+        title: 'Latitude', 
+        color: '#a1a1aa', 
+        gridcolor: 'rgba(255, 255, 255, 0.08)',
+        zerolinecolor: 'rgba(255, 255, 255, 0.15)',
+        showbackground: true,
+        backgroundcolor: 'rgba(18, 12, 28, 0.4)'
+      },
+      zaxis: { 
+        title: 'Elevation (m)', 
+        color: '#a1a1aa', 
+        gridcolor: 'rgba(255, 255, 255, 0.08)',
+        zerolinecolor: 'rgba(255, 255, 255, 0.15)',
+        showbackground: true,
+        backgroundcolor: 'rgba(18, 12, 28, 0.6)'
+      },
+      camera: {
+        eye: { x: 1.85, y: -1.85, z: 0.95 }
+      },
+      aspectmode: 'manual',
+      aspectratio: { x: ratioX, y: ratioY, z: ratioZ }
+    },
+    margin: { l: 20, r: 80, b: 20, t: 30 },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.95,
+      font: { color: '#ffffff', size: 12 },
+      bgcolor: 'rgba(12, 7, 20, 0.75)',
+      bordercolor: 'rgba(255, 255, 255, 0.1)',
+      borderwidth: 1
+    }
+  }, {
+    responsive: true,
+    displayModeBar: true,
+    modeBarButtonsToRemove: ['toImage', 'sendDataToCloud', 'hoverClosest3d']
+  })
+}
+
+const toggle3DView = async () => {
+  is3DView.value = !is3DView.value
+  if (is3DView.value) {
+    await nextTick()
+    renderPlotly3D()
+  }
+}
 
 let startMarker = null
 let endMarker = null
 let routePolyline = null
+let bboxRectangle = null
 
 onMounted(() => {
   // Initialize Leaflet map
   map.value = L.map('map', {
     zoomControl: false // Custom placement below
-  }).setView([60.445, 5.516], 11) // Default to Bergen area
+  }).setView([27.9881, 86.9250], 12) // Default to Mount Everest area
 
   // Add zoom control to top right so it stays clear of the sidebar
   L.control.zoom({ position: 'topright' }).addTo(map.value)
@@ -146,11 +311,20 @@ onMounted(() => {
       pinningMode.value = null
     }
     
-    // Clear route when a point changes
+    // Clear route and bbox when a point changes
     if (routePolyline) {
       map.value.removeLayer(routePolyline)
       routePolyline = null
     }
+    if (bboxRectangle) {
+      map.value.removeLayer(bboxRectangle)
+      bboxRectangle = null
+    }
+    currentPathData.value = null
+    currentSampledPoints.value = null
+    currentSimplices.value = null
+    currentBBox.value = null
+    is3DView.value = false
     
     distance.value = '-- km'
     estTime.value = '--'
@@ -169,6 +343,24 @@ const drawRoute = () => {
   
   if (routePolyline) {
     map.value.removeLayer(routePolyline)
+  }
+  if (bboxRectangle) {
+    map.value.removeLayer(bboxRectangle)
+    bboxRectangle = null
+  }
+  
+  if (currentBBox.value && map.value) {
+    const [minLon, minLat, maxLon, maxLat] = currentBBox.value
+    bboxRectangle = L.rectangle([[minLat, minLon], [maxLat, maxLon]], {
+      color: '#ef4444',
+      weight: 2,
+      dashArray: '6, 6',
+      fill: true,
+      fillColor: '#ef4444',
+      fillOpacity: 0.05,
+      interactive: false
+    }).addTo(map.value)
+    bboxRectangle.bringToBack()
   }
   
   if (colorMode.value === 'primary') {
@@ -234,9 +426,22 @@ const calculateRoute = async () => {
     const max_lon = bounds.getEast();
     const max_lat = bounds.getNorth();
 
+    // Check area right away before querying API to give instant, clear feedback if box is too large
+    const avgLatRad = ((min_lat + max_lat) / 2) * (Math.PI / 180)
+    const width_m = Math.abs(max_lon - min_lon) * 111320 * Math.cos(avgLatRad)
+    const height_m = Math.abs(max_lat - min_lat) * 111320
+    const area_km2 = (width_m * height_m) / 1e6
+    
+    if (area_km2 > 10000) {
+      alert(`Selected map area (${area_km2.toFixed(1)} km²) exceeds the maximum allowed limit of 10,000 km².\n\nPlease zoom in closer to reduce the bounding box area.`)
+      isLoading.value = false
+      return
+    }
+
     console.log(min_lon, min_lat, max_lon, max_lat, "this should be the bbox")
 
-    const response = await fetch('http://localhost:8000/api/pathfinding/find', {
+    estTime.value = 'Connecting...'
+    const response = await fetch('http://localhost:8000/api/pathfinding/find_stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -245,15 +450,54 @@ const calculateRoute = async () => {
         start: { lat: startLocation.value.lat, lon: startLocation.value.lon },
         end: { lat: endLocation.value.lat, lon: endLocation.value.lon },
         bbox: [min_lon, min_lat, max_lon, max_lat],
-        smooth_path: true
+        smooth_path: true,
+        return_sampled_points: true
       })
     })
     
     if (!response.ok) {
-      throw new Error('Network response was not ok')
+      const errData = await response.json().catch(() => null)
+      const errMsg = errData && errData.detail ? errData.detail : 'Failed to calculate route from backend.'
+      throw new Error(errMsg)
     }
     
-    const data = await response.json()
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finalData = null
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n\n')
+      buffer = lines.pop() // keep incomplete chunk at the end
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const payload = JSON.parse(line.substring(6))
+            if (payload.step === 'status') {
+              estTime.value = payload.message
+            } else if (payload.step === 'complete') {
+              finalData = payload.result
+            } else if (payload.step === 'error') {
+              throw new Error(payload.message || 'Error occurred on server.')
+            }
+          } catch (err) {
+            if (err.message && err.message !== 'Unexpected end of JSON input') {
+              throw err
+            }
+          }
+        }
+      }
+    }
+    
+    const data = finalData
+    if (!data) {
+      throw new Error('No route response received from server.')
+    }
     
     if (data.status === 'success' && data.path.length > 0) {
       // Backend returns [{x: lon, y: lat, z: elev}, ...]
@@ -264,9 +508,15 @@ const calculateRoute = async () => {
       console.log('Successfully retrieved path from backend!')
       console.log('Number of nodes:', fullPath.length)
       
-      // Save path and draw it
+      // Save path, sampled points, and simplices for 2D/3D (Plotly) visualization
       currentPathData.value = fullPath;
+      currentSampledPoints.value = data.sampled_points || null;
+      currentSimplices.value = data.simplices || null;
+      currentBBox.value = [min_lon, min_lat, max_lon, max_lat];
       drawRoute();
+      if (is3DView.value) {
+        nextTick(() => renderPlotly3D())
+      }
       
       // Dummy distance calculation for UI purposes
       const dx = endLocation.value.lon - startLocation.value.lon
@@ -280,12 +530,14 @@ const calculateRoute = async () => {
       // Fit bounds to route
       map.value.fitBounds(routePolyline.getBounds(), { padding: [50, 50] })
     } else {
+      estTime.value = 'Error'
       alert(data.message || 'Could not find a path.')
     }
     
   } catch (error) {
     console.error('Error fetching route:', error)
-    alert('Error connecting to backend API.')
+    estTime.value = 'Error'
+    alert(error.message || 'Error connecting to backend API.')
   } finally {
     isLoading.value = false
   }
@@ -357,7 +609,7 @@ const calculateRoute = async () => {
         </div>
         <div class="flex items-center justify-between text-sm text-gray-400 px-1">
           <span>Status</span>
-          <span>{{ isLoading ? 'Calculating' : estTime }}</span>
+          <span>{{ estTime }}</span>
         </div>
         <button 
           @click="calculateRoute" 
@@ -378,9 +630,43 @@ const calculateRoute = async () => {
       </div>
     </aside>
 
-    <!-- MAP CONTAINER -->
-    <main class="flex-1 relative min-h-[500px]" :class="{ 'map-dark-filter': isDarkFilter }">
-      <div id="map" class="absolute inset-0 z-0"></div>
+    <!-- MAP & 3D PLOTLY CONTAINER -->
+    <main class="flex-1 relative min-h-[500px]" :class="{ 'map-dark-filter': !is3DView && isDarkFilter }">
+      <!-- Floating View Toggle Button (Top Middle of Map) -->
+      <transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="transform -translate-y-4 scale-95 opacity-0"
+        enter-to-class="transform translate-y-0 scale-100 opacity-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="transform translate-y-0 scale-100 opacity-100"
+        leave-to-class="transform -translate-y-4 scale-95 opacity-0"
+      >
+        <div 
+          v-if="currentPathData && currentPathData.length > 0"
+          class="fixed top-[92px] left-1/2 transform -translate-x-1/2 z-[500] pointer-events-auto"
+        >
+          <button 
+            @click="toggle3DView"
+            class="px-6 py-3 bg-[#de1047] hover:bg-[#e81952] text-white text-sm font-semibold rounded-full shadow-2xl hover:shadow-[#de1047]/50 border border-white/20 flex items-center gap-2.5 transition-all duration-200 cursor-pointer backdrop-blur-md hover:scale-105 active:scale-95"
+          >
+            <svg v-if="!is3DView" class="w-4 h-4 text-white/90 animate-pulse" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+            <svg v-else class="w-4 h-4 text-white/90" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            <span>{{ is3DView ? 'Switch back to 2D Map' : 'Show 3D visualisation of the terrain' }}</span>
+          </button>
+        </div>
+      </transition>
+
+      <!-- Leaflet 2D Map -->
+      <div id="map" v-show="!is3DView" class="absolute inset-0 z-0"></div>
+
+      <!-- Plotly 3D Map -->
+      <div id="plotly-3d-map" v-show="is3DView" class="absolute inset-0 z-0 bg-[#0c0714]"></div>
     </main>
   </div>
 </template>

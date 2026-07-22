@@ -12,12 +12,14 @@ class GraphManager:
         self.height_points = None
         self.alpha = MAIN_SLOPE_PENALTY_ALPHA
 
-    def build_from_mesh(self, height_points, edges, terrain_manager):
+    def build_from_mesh(self, height_points, edges, terrain_manager, progress_callback=None):
         """
         Builds the NetworKit graph from mesh edges using src.graph.make_graph.
         """
         self.height_points = height_points
         
+        if progress_callback:
+            progress_callback("Building routing graph...")
         print(f"Building NetworKit Graph (slope penalty alpha = {self.alpha})...")
         
         wbm_mask = terrain_manager.wbm_mask if APPLY_WATER_BODY_MASK else None

@@ -28,13 +28,17 @@ class TerrainManager:
             self.res_x, self.res_y = src.res
         self.dx, self.dy = compute_metric_resolution(self.res_x, self.res_y, self.bounds)
 
-    def load_from_stac(self, bbox, apply_wbm=True):
+    def load_from_stac(self, bbox, apply_wbm=True, progress_callback=None):
         """
         Queries Microsoft Planetary Computer STAC catalog for DEM tiles covering bbox.
         """
+        if progress_callback:
+            progress_callback("Loading STAC DEM...")
         self.matrix, self.res_x, self.res_y, self.bounds, self.wbm_mask, self.transform = load_dem_from_stac(
             bbox, apply_wbm=apply_wbm, water_elevation=self.water_elevation
         )
+        if progress_callback:
+            progress_callback("Aligning terrain rasters...")
         self.dx, self.dy = compute_metric_resolution(self.res_x, self.res_y, self.bounds)
 
     @property

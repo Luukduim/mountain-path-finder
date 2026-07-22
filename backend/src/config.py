@@ -21,7 +21,7 @@ DEFAULT_BBOX_CANVAS_SIZE = 1000
 
 # Water Body Mask Config
 APPLY_WATER_BODY_MASK = True
-WATER_BODY_ELEVATION = -1
+WATER_BODY_ELEVATION = -10
 
 # =====================================================================
 # 3. Quadtree Decomposition Config
@@ -65,10 +65,10 @@ DEFAULT_SLOPE_PENALTY_ALPHA = 50.0
 MAIN_SLOPE_PENALTY_ALPHA = 5000
 NETWORKIT_INFINITY_THRESHOLD = 1e300
 PENALTY_BASE_SCALE = 1.0
-WATER_CROSSING_PENALTY = 1000
+WATER_CROSSING_PENALTY = 500
 
 # Path smoothing parameters
-SMOOTH_PATH = True
+SMOOTH_PATH = False
 SMOOTH_PATH_LAMBDA = 250
 
 # =====================================================================

@@ -240,7 +240,7 @@ def find_nearest_point_index(points, coord):
     return np.argmin(distances)
 
 
-def inject_exact_endpoints(points, endpoints, min_dist=1.5):
+def inject_exact_endpoints(points, endpoints, min_dist=0.1):
     """
     Injects exact start and end coordinates into the 2D point cloud while preventing
     degenerate 'sliver' triangles by removing any existing Poisson points that are too close.

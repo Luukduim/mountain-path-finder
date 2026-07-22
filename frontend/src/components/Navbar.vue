@@ -2,7 +2,7 @@
   <header class="absolute bg-dark top-0 left-0 right-0 flex justify-between items-center px-4 py-4 z-50">
     <div class="font-logo text-3xl font-bold">Fjellrouter</div>
     
-    <nav class="flex gap-8 text-xl font-semibold">
+    <nav class="absolute left-1/2 transform -translate-x-1/2 flex gap-8 text-xl font-semibold">
       <router-link to="/" class="hover-transition hover:text-primary-hover" active-class="text-primary">Home</router-link>
       <router-link to="/map" class="hover-transition hover:text-primary" active-class="text-primary">Map</router-link>
       <router-link to="/settings" class="hover-transition hover:text-primary" active-class="text-primary">Settings</router-link>
